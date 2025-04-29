@@ -27,10 +27,10 @@ RUN apt-get update \
        wget \
  && rm -rf /var/lib/apt/lists/*
 
-# --- step 2: 設定工作目錄 ---
+ RUN pip install --no-cache-dir gunicorn
+
 WORKDIR /app
 
-# --- step 3: 複製 requirements 並安裝 Python 套件 ---
 COPY requirements.txt .
 RUN pip install --upgrade pip \
  && pip install --no-cache-dir -r requirements.txt
@@ -38,7 +38,6 @@ RUN pip install --upgrade pip \
 
 RUN python -m playwright install
 
-# 6. 複製專案程式碼
 COPY . .
 
 EXPOSE 8000
