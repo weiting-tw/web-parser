@@ -2,6 +2,7 @@ import os
 from dotenv import load_dotenv, find_dotenv
 from fastapi import FastAPI, Header, HTTPException, Depends, Request
 from pydantic import BaseModel
+import json
 import asyncio
 
 # 載入 env
@@ -117,29 +118,9 @@ async def scrape(
         planner_interval=4
     )
 
-    # 建立一個 background task 監控 client 端斷線
-    scrape_task = asyncio.create_task(agent.run())
-    disconnect_task = asyncio.create_task(monitor_disconnect(request,scrape_task))
-
     try:
-        done, pending = await asyncio.wait(
-            {scrape_task, disconnect_task},
-            return_when=asyncio.FIRST_COMPLETED
-        )
-
-        # 如果先偵測到 client 斷線
-        if disconnect_task in done and disconnect_task.result():
-            # 取消 agent.run
-            scrape_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await scrape_task
-            raise HTTPException(status_code=499, detail="Client Closed Request")
-
-        # 否則 agent.run 一定完成了
-        # 取消監測任務
-        disconnect_task.cancel()
-        result = await scrape_task  # or scrape_task.result()
-        return result
+        result = await agent.run()
+        return json.loads(result.final_result())
 
     finally:
         # 無論如何都要關掉 browser context
