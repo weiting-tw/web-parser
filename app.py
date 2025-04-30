@@ -68,9 +68,7 @@ context_cfg = BrowserContextConfig(
 )
 
 parser_default_message_context = """
-    You are an expert web‑scraping assistant specialized in generating browser-use scripts. 
-    Your output must be valid JavaScript code using the browser-use API (https://docs.browser-use.com).
-    The script should:
+    You are an expert web‑scraping assistant
     1. 從 task 給予的起始頁面開始，自動翻頁直到沒有「下一頁」為止。
     2. 在每個列表頁面抓出所有文章項目，並對它們做進入，如果像的 url 是相對路徑時，需把當前的 baseUrl 放入到 url 內以及擷取完整的 url、title、content，再回到列表。
     3. 以 JSON 陣列形式輸出，每筆記錄包含 { url, title, content }。
@@ -82,24 +80,42 @@ parser_default_message_context = """
 """
 
 parser_url_message_context = """
-    You are an expert web‑scraping assistant specialized in generating browser-use scripts. 
-    Your output must be valid JavaScript code using the browser-use API (https://docs.browser-use.com).
-    The script should:
-    1. 從給定的起始列表頁一直翻到沒有『下一頁』為止，並在每頁收集所有文章項目的連結（若為相對路徑請自動拼成完整 URL），只專注在『翻頁＋收集連結』的這件事。.
+    You are an expert web‑scraping assistant
+    1. 從給定的起始列表頁，收集頁面中的所有文章項目連結（若為相對路徑請自動拼成完整 URL），只專注在『翻頁＋收集連結』的這件事。.
     2. output format: [
         { "url": "...", "title": "..." },
         { "url": "...", "title": "..." },
         …
         ]
+    3. 其餘資料不輸出
 """
 
 parser_post_message_context = """
-    You are an expert web‑scraping assistant specialized in generating browser-use scripts. 
-    Your output must be valid JavaScript code using the browser-use API (https://docs.browser-use.com).
-    The script should:
+    You are an expert web‑scraping assistant specialized
     1. 接受一個文章 url，開啟它後擷取 { url, title, content }。只做這件事，不要翻頁、不用處理多個 URL。.
     2. output format: 
         { "url": "...", "title": "...", "content": "..." }
+    3. 其餘資料不輸出
+"""
+
+parser_pages_message_context = """
+    You are an expert web‑scraping assistant
+    1. 接收使用者提供的「起始頁面 URL」。
+    2. 解析出所有與分頁（pagination）相關的連結
+        a. 例如：下一頁、上一頁、第一頁、最後一頁、分頁數字等。
+        b. 將解析出來的連結記錄下來，供後續使用。
+    3. 透過已知的分頁去取得其餘的所有的分頁（pagination）相關連結
+        a. 使用遞迴且最少頁面跳轉的方式進行分頁解析
+    4. 若連結為相對路徑，自動補全成絕對 URL。
+        a. 紀錄已拜訪的 URL，避免無限迴圈。
+    5. 依據最大分頁數量限制，限制最多解析的分頁數量，並且補齊不完整的分頁連結。
+    6. 將結果包含補齊的分頁連結輸出 JSON 陣列的格式如下：
+        [
+            { "url": "..." },
+            { "url": "..." },
+            …
+        ]
+    7. 其餘資料不輸出
 """
 
 @app.get("/", summary="Liveness probe")
@@ -133,6 +149,7 @@ async def run_agent(
         return Response(content=result.final_result(), media_type="application/json")
     finally:
         await ctx.close()
+        await browser.close()
 
 def make_endpoint(path: str, message_context: str):
     @app.post(path)
@@ -154,6 +171,7 @@ def make_endpoint(path: str, message_context: str):
 make_endpoint("/scrape", parser_default_message_context)
 make_endpoint("/post", parser_post_message_context)
 make_endpoint("/url", parser_url_message_context)
+make_endpoint("/pages", parser_pages_message_context)
 
 if __name__ == "__main__":
     import uvicorn
