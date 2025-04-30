@@ -27,7 +27,7 @@ RUN apt-get update \
        wget \
  && rm -rf /var/lib/apt/lists/*
 
- RUN pip install --no-cache-dir gunicorn
+RUN pip install --no-cache-dir gunicorn
 
 WORKDIR /app
 
@@ -35,8 +35,12 @@ COPY requirements.txt .
 RUN pip install --upgrade pip \
  && pip install --no-cache-dir -r requirements.txt
 
+# Install Playwright and browsers with system dependencies
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+RUN playwright install --with-deps chromium
+RUN playwright install-deps
 
-RUN python -m playwright install
+ENV CHROME_PATH=/ms-playwright/chromium-*/chrome-linux/chrome
 
 COPY . .
 
