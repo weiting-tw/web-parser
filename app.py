@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv, find_dotenv
-from fastapi import FastAPI, Header, HTTPException, Depends, Request
+from fastapi import FastAPI, Header, HTTPException, Depends, Request, Response
 from pydantic import BaseModel
 import json
 import asyncio
@@ -67,64 +67,93 @@ context_cfg = BrowserContextConfig(
     viewport_expansion=500,
 )
 
-async def monitor_disconnect(request: Request, task: asyncio.Task):
-    try:
-        while True:
-            if await request.is_disconnected():
-                task.cancel()
-                break
-            await asyncio.sleep(0.1)
-    except asyncio.CancelledError:
-        # 本身被取消就結束
-        pass
+parser_default_message_context = """
+    You are an expert web‑scraping assistant specialized in generating browser‑use scripts. 
+    Your output must be valid JavaScript code using the browser‑use API (https://docs.browser‑use.com).
+    The script should:
+    1. 從 task 給予的起始頁面開始，自動翻頁直到沒有「下一頁」為止。
+    2. 在每個列表頁面抓出所有文章項目，並對它們做進入，如果像的 url 是相對路徑時，需把當前的 baseUrl 放入到 url 內以及擷取完整的 url、title、content，再回到列表。
+    3. 以 JSON 陣列形式輸出，每筆記錄包含 { url, title, content }。
+    4. 格式如下 [
+        { "url": "...", "title": "...", "content": "..." },
+        { "url": "...", "title": "...", "content": "..." },
+        …
+        ]
+"""
 
-@app.post("/scrape")
-async def scrape(
-    request: Request,
-    payload: ScrapeRequest,
-    token: str = Depends(verify_token)
+parser_url_message_context = """
+    You are an expert web‑scraping assistant specialized in generating browser‑use scripts. 
+    Your output must be valid JavaScript code using the browser‑use API (https://docs.browser‑use.com).
+    The script should:
+    1. 從給定的起始列表頁一直翻到沒有『下一頁』為止，並在每頁收集所有文章項目的連結（若為相對路徑請自動拼成完整 URL），只 focus 在『翻頁＋收集連結』這件事。.
+    2. output format: [
+        { "url": "...", "title": "..." },
+        { "url": "...", "title": "..." },
+        …
+        ]
+"""
+
+parser_post_message_context = """
+    You are an expert web‑scraping assistant specialized in generating browser‑use scripts. 
+    Your output must be valid JavaScript code using the browser‑use API (https://docs.browser‑use.com).
+    The script should:
+    1. 接受一個文章 url，開啟它後擷取 { url, title, content }。只做這件事，不要翻頁、不用處理多個 URL。.
+    2. output format: 
+        { "url": "...", "title": "...", "content": "..." }
+"""
+
+@app.get("/", summary="Liveness probe")
+async def health() -> dict:
+    """
+    簡單回應 service 狀態
+    """
+    return {"status": "ok"}
+
+async def run_agent(
+    task: str,
+    message_context: str,
+    llm,
+    planner_llm,
+    browser,
+    context_cfg
 ):
-    """
-    接受 JSON:
-    {
-      "task": "...",
-    }
-    Header: X-API-Token: <你設定的 token>
-    回傳 JSON 陣列
-    """
     # 每次呼叫都可以新建 Context，避免跨請求干擾
     ctx = BrowserContext(browser=browser, config=context_cfg)
-
-    agent = Agent(
-        task=payload.task,
-        message_context=
-        """
-            You are an expert web‑scraping assistant specialized in generating browser‑use scripts. 
-            Your output must be valid JavaScript code using the browser‑use API (https://docs.browser‑use.com).
-            The script should:
-            1. 從 task 給予的起始頁面開始，自動翻頁直到沒有「下一頁」為止。
-            2. 在每個列表頁面抓出所有文章項目，並對它們做進入，如果像的 url 是相對路徑時，需把當前的 baseUrl 放入到 url 內以及擷取完整的 url、title、content，再回到列表。
-            3. 以 JSON 陣列形式輸出，每筆記錄包含 { url, title, content }。
-            4. 格式如下 [
-                { "url": "...", "title": "...", "content": "..." },
-                { "url": "...", "title": "...", "content": "..." },
-                …
-                ]
-        """,
-        llm=llm,
-        browser_context=ctx,
-        planner_llm=planner_llm,
-        use_vision_for_planner=False,
-        planner_interval=4
-    )
-
     try:
+        agent = Agent(
+            task=task,
+            message_context=message_context,
+            llm=llm,
+            browser_context=ctx,
+            planner_llm=planner_llm,
+            use_vision_for_planner=False,
+            planner_interval=4
+        )
         result = await agent.run()
-        return json.loads(result.final_result())
-
+        return Response(content=result.final_result(), media_type="application/json")
     finally:
-        # 無論如何都要關掉 browser context
         await ctx.close()
+
+def make_endpoint(path: str, message_context: str):
+    @app.post(path)
+    async def endpoint(
+        payload: ScrapeRequest,
+        token: str = Depends(verify_token),
+    ):
+        return await run_agent(
+            task=payload.task,
+            message_context=message_context,
+            llm=llm,
+            planner_llm=planner_llm,
+            browser=browser,
+            context_cfg=context_cfg
+        )
+    return endpoint
+
+# 依序建立三支路由
+make_endpoint("/scrape", parser_default_message_context)
+make_endpoint("/post", parser_post_message_context)
+make_endpoint("/url", parser_url_message_context)
 
 if __name__ == "__main__":
     import uvicorn
