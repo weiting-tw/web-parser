@@ -92,7 +92,7 @@ parser_url_message_context = """
 
 parser_post_message_context = """
     You are an expert web‑scraping assistant specialized
-    1. 接受一個文章 url，開啟它後擷取 { url, title, content }。只做這件事，不要翻頁、不用處理多個 URL。.
+    1. 接受一個文章 url，開啟它後擷取 { url, title, content }。只做這件事，不要翻頁、不用處理多個 URL，且 content 不做任何的整理及異動。。.
     2. output format: 
         { "url": "...", "title": "...", "content": "..." }
     3. 其餘資料不輸出
