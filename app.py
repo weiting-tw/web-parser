@@ -68,8 +68,8 @@ context_cfg = BrowserContextConfig(
 )
 
 parser_default_message_context = """
-    You are an expert web‑scraping assistant specialized in generating browser‑use scripts. 
-    Your output must be valid JavaScript code using the browser‑use API (https://docs.browser‑use.com).
+    You are an expert web‑scraping assistant specialized in generating browser-use scripts. 
+    Your output must be valid JavaScript code using the browser-use API (https://docs.browser-use.com).
     The script should:
     1. 從 task 給予的起始頁面開始，自動翻頁直到沒有「下一頁」為止。
     2. 在每個列表頁面抓出所有文章項目，並對它們做進入，如果像的 url 是相對路徑時，需把當前的 baseUrl 放入到 url 內以及擷取完整的 url、title、content，再回到列表。
@@ -82,10 +82,10 @@ parser_default_message_context = """
 """
 
 parser_url_message_context = """
-    You are an expert web‑scraping assistant specialized in generating browser‑use scripts. 
-    Your output must be valid JavaScript code using the browser‑use API (https://docs.browser‑use.com).
+    You are an expert web‑scraping assistant specialized in generating browser-use scripts. 
+    Your output must be valid JavaScript code using the browser-use API (https://docs.browser-use.com).
     The script should:
-    1. 從給定的起始列表頁一直翻到沒有『下一頁』為止，並在每頁收集所有文章項目的連結（若為相對路徑請自動拼成完整 URL），只 focus 在『翻頁＋收集連結』這件事。.
+    1. 從給定的起始列表頁一直翻到沒有『下一頁』為止，並在每頁收集所有文章項目的連結（若為相對路徑請自動拼成完整 URL），只專注在『翻頁＋收集連結』的這件事。.
     2. output format: [
         { "url": "...", "title": "..." },
         { "url": "...", "title": "..." },
@@ -94,8 +94,8 @@ parser_url_message_context = """
 """
 
 parser_post_message_context = """
-    You are an expert web‑scraping assistant specialized in generating browser‑use scripts. 
-    Your output must be valid JavaScript code using the browser‑use API (https://docs.browser‑use.com).
+    You are an expert web‑scraping assistant specialized in generating browser-use scripts. 
+    Your output must be valid JavaScript code using the browser-use API (https://docs.browser-use.com).
     The script should:
     1. 接受一個文章 url，開啟它後擷取 { url, title, content }。只做這件事，不要翻頁、不用處理多個 URL。.
     2. output format: 
