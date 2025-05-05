@@ -37,15 +37,15 @@ def verify_token(x_token: str = Header(..., alias="X-API-Token")):
 llm = utils.get_llm_model(
     provider="azure_openai",
     model_name=os.getenv("LLM_MODEL", "gpt-4.1"),
-    temperature=1,
+    temperature=os.getenv("LLM_TEMPERATURE", 0.0),
     base_url=AZURE_ENDPOINT,
     api_key=AZURE_KEY,
     enable_memory=True,
 )
 planner_llm = utils.get_llm_model(
     provider="azure_openai",
-    model_name=os.getenv("PLANNER_LLM_MODEL", "o3-mini"),
-    temperature=1,
+    model_name=os.getenv("PLANNER_LLM_MODEL", "gpt-4.1-mini"),
+    temperature=os.getenv("PLANNER_LLM_TEMPERATURE", 0.0),
     base_url=AZURE_ENDPOINT,
     api_key=AZURE_KEY,
     enable_memory=True,
