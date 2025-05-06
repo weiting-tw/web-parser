@@ -4,7 +4,6 @@ from fastapi import FastAPI, Header, HTTPException, Depends, Request, Response
 from pydantic import BaseModel
 import json
 import asyncio
-from browser_use import Controller, ActionResult, Browser
 
 # 載入 env
 dotenv_path = find_dotenv()  # or os.path.join(os.path.dirname(__file__), ".env")
@@ -22,7 +21,6 @@ AZURE_KEY      = os.getenv("AZURE_OPENAI_API_KEY")
 
 # 建立 FastAPI
 app = FastAPI(title="Browser‑use Scraping API")
-controller = Controller()
 
 # Body schema
 class ScrapeRequest(BaseModel):
@@ -118,7 +116,11 @@ parser_pages_message_context = """
             { "url": "..." },
             …
         ]
-    7. 其餘資料不輸出
+    7. 如果沒有分頁的話，就提供來源網址的 URL
+        [
+            { "url": "..." }
+        ]
+    8. 其餘資料不輸出
 """
 
 @app.get("/", summary="Liveness probe")
